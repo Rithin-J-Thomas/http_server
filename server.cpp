@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <unistd.h>
 #include <netdb.h>
+#include <cstring>
 
 #define MYPORT "8080"
 #define BACKLOG 5 // //BACKLOG is the number of connections allowed on the incoming queue.
@@ -11,10 +12,18 @@
 int main()
 {
 
+	std::cout << "Server Started\n";
 	struct sockaddr_storage clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 
 	char clientDataBuff[1024];
+
+	const char *response =
+	    "HTTP/1.1 200 OK\r\n"
+	    "Content-Type: text/plain\r\n"
+	    "Content-Length: 24\r\n"
+	    "\r\n"
+	    "Hello World From Sever!";
 
 	int serverSock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -29,24 +38,27 @@ int main()
 
 	int serverBind = bind(serverSock_fd, res->ai_addr, res->ai_addrlen);
 	// //std::cout<<"\nBind ="<<serverBind<<"\n";
-	// perror("bind");
 
 	int listenStatus = listen(serverSock_fd, BACKLOG);
-	// perror("listen Status ");
+	while (true)
+	{
+		int client_fd = accept(serverSock_fd,
+				       (struct sockaddr *)&clientAddr,
+				       &clientAddrLen);
 
-	// int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
-	int client_fd = accept(serverSock_fd,
-			       (struct sockaddr *)&clientAddr,
-			       &clientAddrLen);
+		int clientMessageRecv = recv(client_fd, clientDataBuff, sizeof(clientDataBuff), 0);
 
-	// int recv(int sockfd, void *buf, int len, int flags);
+		clientDataBuff[clientMessageRecv] = '\0';
 
-	int clientMessageRecv = recv(client_fd, clientDataBuff, sizeof(clientDataBuff), 0);
-perror("listen Status ");
-clientDataBuff[clientMessageRecv] = '\0';
+		std::cout << clientDataBuff << '\n';
 
-std::cout << clientDataBuff << '\n';
+		send(client_fd, response, strlen(response), 0);
+		std::cout << "Sending HTTP response...\n";
 
+		close(client_fd);
+
+	}
 	freeaddrinfo(res);
+
 	return 0;
 }
